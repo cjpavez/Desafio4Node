@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 import process from "node:process";
 import pg from "pg";
+import DatabaseError from "./lib/errors/database/database.error.js";
 
 dotenv.config();
 
@@ -16,36 +17,75 @@ const pool = new Pool({
 });
 
 export const obtenerPosts = async () => {
-	const { rows } = await pool.query(
-		"SELECT id, titulo, img, descripcion, likes FROM posts ORDER BY id ASC"
-	);
+	try {
+		const { rowCount, rows } = await pool.query(
+			"SELECT id, titulo, img, descripcion, likes FROM posts ORDER BY id ASC"
+		);
 
-	return rows;
+		if (rowCount === 0) {
+			throw new DatabaseError("No se encontraron posts en la base de datos.", {
+				operation: "obtenerPosts",
+				statusCode: 404,
+			});
+		}
+
+		return rows;
+	} catch (error) {
+		throw DatabaseError.from(
+			error,
+			"obtenerPosts",
+			"No fue posible obtener los posts desde la base de datos."
+		);
+	}
 };
 
 export const crearPost = async (titulo, imageUrl, descripcion) => {
-	const { rows } = await pool.query(
-		"INSERT INTO posts (titulo, img, descripcion, likes) VALUES ($1, $2, $3, $4) RETURNING id, titulo, img, descripcion, likes",
-		[titulo, imageUrl, descripcion, 0]
-	);
+	try {
+		const { rows } = await pool.query(
+			"INSERT INTO posts (titulo, img, descripcion, likes) VALUES ($1, $2, $3, $4) RETURNING id, titulo, img, descripcion, likes",
+			[titulo, imageUrl, descripcion, 0]
+		);
 
-	return rows[0];
+		return rows[0];
+	} catch (error) {
+		throw DatabaseError.from(
+			error,
+			"crearPost",
+			"No fue posible crear el post en la base de datos."
+		);
+	}
 };
 
 export const darLike = async (id) => {
-	const { rows } = await pool.query(
-		"UPDATE posts SET likes = likes + 1 WHERE id = $1 RETURNING id, titulo, img, descripcion, likes",
-		[id]
-	);
+	try {
+		const { rows } = await pool.query(
+			"UPDATE posts SET likes = likes + 1 WHERE id = $1 RETURNING id, titulo, img, descripcion, likes",
+			[id]
+		);
 
-	return rows[0];
+		return rows[0];
+	} catch (error) {
+		throw DatabaseError.from(
+			error,
+			"darLike",
+			"No fue posible actualizar el like del post en la base de datos."
+		);
+	}
 };
 
 export const eliminarPost = async (id) => {
-	const { rows } = await pool.query(
-		"DELETE FROM posts WHERE id = $1 RETURNING id",
-		[id]
-	);
+	try {
+		const { rows } = await pool.query(
+			"DELETE FROM posts WHERE id = $1 RETURNING id",
+			[id]
+		);
 
-	return rows[0];
+		return rows[0];
+	} catch (error) {
+		throw DatabaseError.from(
+			error,
+			"eliminarPost",
+			"No fue posible eliminar el post de la base de datos."
+		);
+	}
 };
